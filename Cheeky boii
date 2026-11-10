@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terraria Fisch RPG - Madness Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        body {
+            font-family: 'Press Start 2P', monospace;
+            user-select: none;
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+        }
+        .pixelated {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen flex flex-col justify-between relative bg-black">
+
+    <!-- INTRO SCREEN -->
+    <div id="intro-screen" class="absolute inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center p-6 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black">
+        <div class="max-w-md w-full bg-slate-900/90 border-4 border-amber-600 p-8 rounded-xl shadow-2xl text-center space-y-6 backdrop-blur-md">
+            <h1 class="text-2xl text-amber-400 font-bold tracking-wider drop-shadow-[0_4px_0_#78350f]">TERRARIA FISCH RPG</h1>
+            <p class="text-xs text-slate-400 leading-relaxed">Enter the pixelated multi-biome wilderness. Catch rare fish, master the Fisch reel, and snipe airborne catches!</p>
+            
+            <div class="space-y-2 text-left">
+                <label class="text-[10px] text-amber-200 uppercase tracking-widest">Agent / Grunt Name:</label>
+                <input id="player-name-input" type="text" value="Grunt_01" maxlength="16" class="w-full bg-slate-950 border-2 border-slate-700 focus:border-amber-500 text-amber-300 px-4 py-3 text-sm rounded outline-none font-mono">
+            </div>
+
+            <div class="flex gap-4 pt-2">
+                <button id="start-btn" class="flex-1 bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white font-bold py-3 px-6 rounded border-b-4 border-amber-800 active:border-b-0 active:translate-y-1 transition text-xs cursor-pointer">
+                    START ADVENTURE
+                </button>
+                <button id="load-btn" class="bg-slate-700 hover:bg-slate-600 active:bg-slate-800 text-slate-200 font-bold py-3 px-4 rounded border-b-4 border-slate-900 active:border-b-0 active:translate-y-1 transition text-xs cursor-pointer">
+                    LOAD SAVE
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN GAME HUD -->
+    <div id="hud" class="hidden absolute top-0 left-0 w-full p-4 flex justify-between items-start z-30 pointer-events-none">
+        <div class="flex flex-col gap-2 pointer-events-auto">
+            <div class="bg-slate-900/80 border-2 border-slate-700 p-3 rounded backdrop-blur text-xs space-y-1 shadow-lg">
+                <div class="flex items-center gap-2"><span class="text-amber-400">AGENT:</span> <span id="hud-name" class="text-white">Grunt</span></div>
+                <div class="flex items-center gap-2"><span class="text-amber-400">COINS:</span> <span id="hud-coins" class="text-emerald-400 font-bold">150</span> 🪙</div>
+                <div class="flex items-center gap-2"><span class="text-amber-400">ROD:</span> <span id="hud-rod" class="text-cyan-300">Flimsy Rod</span></div>
+                <div class="flex items-center gap-2"><span class="text-amber-400">BIOME:</span> <span id="hud-biome" class="text-purple-300">Forest Surface</span></div>
+            </div>
+            <div class="flex gap-2">
+                <button id="inv-btn" class="bg-amber-700 hover:bg-amber-600 text-white px-3 py-2 rounded text-[10px] border-b-2 border-amber-900 shadow cursor-pointer">BACKPACK (B)</button>
+                <button id="shop-btn" class="bg-emerald-700 hover:bg-emerald-600 text-white px-3 py-2 rounded text-[10px] border-b-2 border-emerald-900 shadow cursor-pointer">SHOPS (S)</button>
+            </div>
+        </div>
+
+        <div class="flex gap-2 pointer-events-auto items-center">
+            <button id="save-btn" class="bg-blue-700 hover:bg-blue-600 text-white px-3 py-2 rounded text-[10px] border-b-2 border-blue-950 shadow cursor-pointer">SAVE</button>
+            <button id="fs-btn" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded text-[10px] border-b-2 border-slate-900 shadow cursor-pointer">FULLSCREEN ⛶</button>
+        </div>
+    </div>
+
+    <!-- GAME CANVAS CONTAINER -->
+    <div class="relative flex-1 w-full h-full overflow-hidden flex items-center justify-center">
+        <canvas id="gameCanvas" class="w-full h-full block pixelated"></canvas>
+
+        <!-- REELING / FISCH MINI-GAME OVERLAY -->
+        <div id="reeling-overlay" class="hidden absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center">
+            <div class="bg-slate-900 border-4 border-cyan-500 p-6 rounded-xl w-96 text-center space-y-4 shadow-2xl">
+                <h2 class="text-sm text-cyan-400 font-bold animate-pulse">FISH ON THE LINE! REEL IT IN!</h2>
+                
+                <!-- Tension Gauge -->
+                <div class="space-y-1 text-left">
+                    <div class="flex justify-between text-[9px] text-slate-300">
+                        <span>TENSION</span>
+                        <span id="tension-val">25%</span>
+                    </div>
+                    <div class="w-full h-4 bg-slate-950 rounded overflow-hidden border border-slate-700 p-0.5">
+                        <div id="tension-bar" class="h-full bg-emerald-500 rounded transition-all duration-75" style="width: 25%;"></div>
+                    </div>
+                </div>
+
+                <!-- Fisch Alignment Catch Bar -->
+                <div class="space-y-1 text-left">
+                    <div class="flex justify-between text-[9px] text-slate-300">
+                        <span>ALIGNMENT ZONE</span>
+                        <span id="progress-val">Progress: 0%</span>
+                    </div>
+                    <div id="reeling-track" class="relative w-full h-8 bg-slate-950 rounded overflow-hidden border-2 border-slate-700 cursor-pointer">
+                        <div id="reeling-fish" class="absolute top-1 bottom-1 w-6 bg-red-500 rounded transition-all duration-75" style="left: 40%;"></div>
+                        <div id="reeling-player-bar" class="absolute top-0 bottom-0 w-12 bg-cyan-500/50 border-2 border-cyan-400 rounded transition-all duration-75" style="left: 30%;"></div>
+                    </div>
+                    <p class="text-[8px] text-slate-400 text-center pt-1">Hold [SPACE] or Click & Drag to keep target inside your bar!</p>
+                </div>
+
+                <div class="w-full h-3 bg-slate-950 rounded overflow-hidden border border-slate-700">
+                    <div id="catch-progress-bar" class="h-full bg-amber-500 w-0 transition-all"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AIRBORNE SNIPE OVERLAY -->
+        <div id="snipe-overlay" class="hidden absolute inset-0 z-40 pointer-events-none flex items-center justify-center">
+            <div class="absolute text-center animate-bounce">
+                <div id="snipe-target" class="w-16 h-16 rounded-full border-4 border-dashed border-red-500 animate-spin cursor-pointer pointer-events-auto flex items-center justify-center text-xs text-amber-300 bg-black/40">
+                    🎯
+                </div>
+                <p class="text-[10px] text-amber-400 mt-2 font-bold bg-black/80 px-2 py-1 rounded">CLICK THE FLYING FISH FOR 3X MULTIPLIER!</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- INVENTORY MODAL -->
+    <div id="inventory-modal" class="hidden absolute inset-0 z-50 bg-black/80 backdrop-blur flex items-center justify-center p-6">
+        <div class="bg-slate-900 border-4 border-amber-600 w-full max-w-2xl h-[500px] rounded-xl flex flex-col p-6 shadow-2xl">
+            <div class="flex justify-between items-center pb-4 border-b border-slate-800">
+                <h2 class="text-sm text-amber-400 font-bold">BACKPACK INVENTORY</h2>
+                <button id="close-inv-btn" class="text-red-400 hover:text-red-300 text-sm font-bold px-2 cursor-pointer">✕</button>
+            </div>
+            <div class="flex-1 overflow-y-auto py-4 grid grid-cols-4 gap-4" id="inventory-grid"></div>
+            <div class="pt-4 border-t border-slate-800 flex justify-between items-center text-xs">
+                <span class="text-slate-400">Capacity: <span id="inv-count">0</span>/24 slots</span>
+                <button id="sell-all-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded text-xs font-bold border-b-2 border-emerald-800 cursor-pointer">SELL ALL FISH</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SHOP MODAL -->
+    <div id="shop-modal" class="hidden absolute inset-0 z-50 bg-black/80 backdrop-blur flex items-center justify-center p-6">
+        <div class="bg-slate-900 border-4 border-emerald-600 w-full max-w-2xl h-[500px] rounded-xl flex flex-col p-6 shadow-2xl">
+            <div class="flex justify-between items-center pb-4 border-b border-slate-800">
+                <h2 class="text-sm text-emerald-400 font-bold">ROD & BAIT MERCHANT</h2>
+                <button id="close-shop-btn" class="text-red-400 hover:text-red-300 text-sm font-bold px-2 cursor-pointer">✕</button>
+            </div>
+            <div class="flex-1 overflow-y-auto py-4 space-y-4" id="shop-items-list"></div>
+        </div>
+    </div>
+
+    <!-- FOOTER CONTROLS HINT -->
+    <div class="bg-slate-950 border-t border-slate-800 px-6 py-2 text-[9px] text-slate-400 flex justify-between items-center z-30">
+        <div>MOVE: <span class="text-amber-400">A / D</span> | JUMP: <span class="text-amber-400">W / SPACE</span> | FISH: <span class="text-amber-400">E / CLICK WATER</span></div>
+        <div>BIOMES: Forest (0-1000m), Snowcap (1000-2500m), Mushgrove (2500-4000m), Cursed Isle (4000m+)</div>
+    </div>
+
+    <!-- SCRIPT LOGIC -->
+    <script>
+        let gameData = {
+            name: "Grunt_01",
+            coins: 200,
+            gems: 5,
+            equippedRod: "Flimsy Rod",
+            unlockedRods: ["Flimsy Rod"],
+            inventory: [],
+            bestiary: {},
+            position: { x: 400, y: 300 }
+        };
+
+        const RODS = {
+            "Flimsy Rod": { cost: 0, power: 1.0, luck: 1.0, speed: 1.0 },
+            "Carbon Rod": { cost: 500, power: 1.5, luck: 1.3, speed: 1.2 },
+            "Poseidon Rod": { cost: 2500, power: 2.2, luck: 1.8, speed: 1.5 },
+            "Zeus Thunder Rod": { cost: 10000, power: 3.5, luck: 2.5, speed: 2.0 }
+        };
+
+        const FISH_TYPES = [
+            { name: "Common Carp", biome: "Forest", rarity: "Common", value: 15, weight: 2.4 },
+            { name: "Trout", biome: "Forest", rarity: "Common", value: 25, weight: 3.1 },
+            { name: "Golden Perch", biome: "Forest", rarity: "Uncommon", value: 75, weight: 4.5 },
+            { name: "Icefish", biome: "Snowcap", rarity: "Common", value: 45, weight: 1.8 },
+            { name: "Glacial Shark", biome: "Snowcap", rarity: "Rare", value: 250, weight: 45.0 },
+            { name: "Spore Bass", biome: "Mushgrove", rarity: "Uncommon", value: 90, weight: 5.2 },
+            { name: "Bloopfish", biome: "Mushgrove", rarity: "Epic", value: 600, weight: 12.4 },
+            { name: "Shadow Eel", biome: "Cursed Isle", rarity: "Rare", value: 450, weight: 8.0 },
+            { name: "Zeus Leviathan", biome: "Cursed Isle", rarity: "Mythic", value: 2500, weight: 180.0 }
+        ];
+
+        // Event Binding on DOM Load
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('start-btn').addEventListener('click', startGame);
+            document.getElementById('load-btn').addEventListener('click', loadGame);
+            document.getElementById('save-btn').addEventListener('click', manualSave);
+            document.getElementById('fs-btn').addEventListener('click', toggleFullscreen);
+            document.getElementById('inv-btn').addEventListener('click', openInventory);
+            document.getElementById('close-inv-btn').addEventListener('click', closeInventory);
+            document.getElementById('sell-all-btn').addEventListener('click', sellAllFish);
+            document.getElementById('shop-btn').addEventListener('click', openShop);
+            document.getElementById('close-shop-btn').addEventListener('click', closeShop);
+            document.getElementById('snipe-target').addEventListener('click', () => completeCatch(3));
+        });
+
+        function startGame() {
+            const nameInput = document.getElementById('player-name-input').value.trim();
+            if (nameInput) gameData.name = nameInput;
+            document.getElementById('hud-name').textContent = gameData.name;
+            document.getElementById('intro-screen').classList.add('hidden');
+            document.getElementById('hud').classList.remove('hidden');
+            initGame();
+        }
+
+        function manualSave() {
+            localStorage.setItem('fisch_terraria_save', JSON.stringify(gameData));
+            alert('Game Saved Successfully!');
+        }
+
+        function loadGame() {
+            const saved = localStorage.getItem('fisch_terraria_save');
+            if (saved) {
+                gameData = JSON.parse(saved);
+                document.getElementById('hud-name').textContent = gameData.name;
+                document.getElementById('intro-screen').classList.add('hidden');
+                document.getElementById('hud').classList.remove('hidden');
+                initGame();
+            } else {
+                alert('No saved game found!');
+            }
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let camera = { x: 0, y: 0 };
+        let player = {
+            x: 400,
+            y: 300,
+            vx: 0,
+            vy: 0,
+            width: 24,
+            height: 40,
+            speed: 4.5,
+            jumpForce: -11,
+            grounded: false,
+            facing: 1,
+            state: 'idle'
+        };
+
+        let keys = {};
+        let worldWidth = 6000;
+        let waterLevel = 500;
+        let dayTime = 0.25;
+        let fishShadows = [];
+
+        let fishingState = 'none';
+        let currentFishCatch = null;
+        let reelProgress = 0;
+        let fishBarPos = 50;
+        let playerBarPos = 50;
+        let tension = 20;
+
+        function initGame() {
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            window.addEventListener('keydown', e => {
+                keys[e.code] = true;
+                if (e.code === 'KeyE' && fishingState === 'none') startFishing();
+                if (e.code === 'KeyB') openInventory();
+                if (e.code === 'KeyS') openShop();
+            });
+            window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+            for (let i = 0; i < 30; i++) {
+                fishShadows.push({
+                    x: Math.random() * worldWidth,
+                    y: waterLevel + 40 + Math.random() * 150,
+                    vx: (Math.random() - 0.5) * 1.5,
+                    size: 10 + Math.random() * 15
+                });
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function update() {
+            dayTime = (dayTime + 0.0001) % 1;
+
+            if (fishingState === 'none' || fishingState === 'casting') {
+                if (keys['KeyA'] || keys['ArrowLeft']) {
+                    player.vx = -player.speed;
+                    player.facing = -1;
+                    player.state = 'walk';
+                } else if (keys['KeyD'] || keys['ArrowRight']) {
+                    player.vx = player.speed;
+                    player.facing = 1;
+                    player.state = 'walk';
+                } else {
+                    player.vx = 0;
+                    player.state = 'idle';
+                }
+
+                if ((keys['KeyW'] || keys['Space'] || keys['ArrowUp']) && player.grounded) {
+                    player.vy = player.jumpForce;
+                    player.grounded = false;
+                    player.state = 'jump';
+                }
+            } else {
+                player.vx = 0;
+            }
+
+            player.vy += 0.5;
+            player.x += player.vx;
+            player.y += player.vy;
+
+            let groundY = 380;
+            let inLake = (player.x > 1100 && player.x < 1700) || (player.x > 3100 && player.x < 3700) || (player.x > 4800 && player.x < 5400);
+
+            if (!inLake && player.y + player.height >= groundY) {
+                player.y = groundY - player.height;
+                player.vy = 0;
+                player.grounded = true;
+            } else if (inLake && player.y + player.height >= waterLevel + 180) {
+                player.y = (waterLevel + 180) - player.height;
+                player.vy = 0;
+                player.grounded = true;
+            } else {
+                player.grounded = false;
+            }
+
+            player.x = Math.max(20, Math.min(worldWidth - 20, player.x));
+            camera.x = player.x - canvas.width / 2;
+            camera.y = player.y - canvas.height / 2 + 50;
+
+            let biome = "Forest Surface";
+            if (player.x > 1500 && player.x < 3000) biome = "Snowcap Peaks";
+            else if (player.x >= 3000 && player.x < 4500) biome = "Mushgrove Swamp";
+            else if (player.x >= 4500) biome = "Cursed Isle";
+            document.getElementById('hud-biome').textContent = biome;
+            document.getElementById('hud-coins').textContent = gameData.coins;
+            document.getElementById('hud-rod').textContent = gameData.equippedRod;
+
+            fishShadows.forEach(fs => {
+                fs.x += fs.vx;
+                if (fs.x < 0 || fs.x > worldWidth) fs.vx *= -1;
+            });
+
+            if (fishingState === 'reeling') {
+                fishBarPos += (Math.random() - 0.5) * 6;
+                fishBarPos = Math.max(5, Math.min(90, fishBarPos));
+
+                if (keys['Space']) {
+                    playerBarPos -= 2.5;
+                } else {
+                    playerBarPos += 2.5;
+                }
+                playerBarPos = Math.max(0, Math.min(85, playerBarPos));
+
+                let aligned = Math.abs(fishBarPos - playerBarPos) < 15;
+                if (aligned) {
+                    reelProgress += 0.8;
+                    tension = Math.max(10, tension - 0.3);
+                } else {
+                    reelProgress -= 0.4;
+                    tension += 0.6;
+                }
+                document.getElementById('catch-progress-bar').style.width = Math.max(0, reelProgress) + '%';
+                document.getElementById('tension-bar').style.width = tension + '%';
+                document.getElementById('tension-val').textContent = Math.round(tension) + '%';
+                document.getElementById('reeling-fish').style.left = fishBarPos + '%';
+                document.getElementById('reeling-player-bar').style.left = playerBarPos + '%';
+
+                if (tension >= 100) {
+                    endFishing(false, "Line Snapped!");
+                } else if (reelProgress >= 100) {
+                    endFishing(true, "Caught!");
+                }
+            }
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            let skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            if (dayTime > 0.2 && dayTime < 0.8) {
+                skyGrad.addColorStop(0, '#38bdf8');
+                skyGrad.addColorStop(1, '#bae6fd');
+            } else {
+                skyGrad.addColorStop(0, '#020617');
+                skyGrad.addColorStop(1, '#1e1b4b');
+            }
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            ctx.translate(-camera.x, -camera.y);
+
+            ctx.fillStyle = '#334155';
+            ctx.beginPath();
+            ctx.moveTo(0, 400);
+            for (let i = 0; i < worldWidth; i += 200) {
+                ctx.lineTo(i, 250 + Math.sin(i * 0.002) * 100);
+            }
+            ctx.lineTo(worldWidth, 400);
+            ctx.fill();
+
+            let groundY = 380;
+            ctx.fillStyle = '#166534';
+            ctx.fillRect(0, groundY, 1100, 300);
+            ctx.fillStyle = '#78350f';
+            ctx.fillRect(0, groundY + 20, 1100, 800);
+
+            ctx.fillStyle = '#e2e8f0';
+            ctx.fillRect(1700, groundY, 1400, 300);
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(1700, groundY + 20, 1400, 800);
+
+            ctx.fillStyle = '#581c87';
+            ctx.fillRect(3700, groundY, 1100, 300);
+            ctx.fillStyle = '#3b0764';
+            ctx.fillRect(3700, groundY + 20, 1100, 800);
+
+            ctx.fillStyle = '#450a0a';
+            ctx.fillRect(5400, groundY, 1000, 300);
+            ctx.fillStyle = '#18181b';
+            ctx.fillRect(5400, groundY + 20, 1000, 800);
+
+            drawLake(1100, 600, waterLevel);
+            drawLake(3100, 600, waterLevel);
+            drawLake(4800, 600, waterLevel);
+
+            drawPixelTree(300, groundY);
+            drawPixelTree(800, groundY);
+            drawPixelTree(2000, groundY);
+            drawPixelTree(2500, groundY);
+            drawPixelTree(4100, groundY);
+
+            drawMadnessCharacter(player.x, player.y, player.facing, player.state);
+
+            ctx.restore();
+        }
+
+        function drawLake(startX, width, surfaceY) {
+            ctx.fillStyle = 'rgba(14, 165, 233, 0.65)';
+            ctx.fillRect(startX, surfaceY, width, 200);
+
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let x = startX; x < startX + width; x += 10) {
+                let wy = surfaceY + Math.sin(Date.now() * 0.005 + x * 0.05) * 3;
+                if (x === startX) ctx.moveTo(x, wy);
+                else ctx.lineTo(x, wy);
+            }
+            ctx.stroke();
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            fishShadows.forEach(fs => {
+                if (fs.x >= startX && fs.x <= startX + width) {
+                    ctx.beginPath();
+                    ctx.ellipse(fs.x, fs.y, fs.size, fs.size * 0.4, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+        }
+
+        function drawPixelTree(x, groundY) {
+            ctx.fillStyle = '#78350f';
+            ctx.fillRect(x - 8, groundY - 90, 16, 90);
+            ctx.fillStyle = '#15803d';
+            ctx.beginPath();
+            ctx.arc(x, groundY - 110, 45, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawMadnessCharacter(x, y, facing, state) {
+            ctx.save();
+            ctx.translate(x + 12, y + 20);
+
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(-8 + (facing * 4), 18, 6, 8);
+            ctx.fillRect(2 + (facing * 4), 18, 6, 8);
+
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(-8, -5, 16, 22);
+            ctx.fillStyle = '#eab308';
+            ctx.fillRect(-6, 12, 12, 3);
+
+            ctx.fillStyle = '#94a3b8';
+            ctx.beginPath();
+            ctx.arc(12 * facing, 2, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (fishingState === 'casting' || fishingState === 'waiting' || fishingState === 'reeling') {
+                ctx.strokeStyle = '#cbd5e1';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(12 * facing, 2);
+                ctx.lineTo(35 * facing, -20);
+                ctx.stroke();
+            }
+
+            ctx.fillStyle = '#cbd5e1';
+            ctx.beginPath();
+            ctx.arc(0, -16, 11, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(2 * facing - 2, -19, 5, 5);
+
+            ctx.restore();
+        }
+
+        function startFishing() {
+            let inWaterNear = (player.x > 1050 && player.x < 1750) || (player.x > 3050 && player.x < 3750) || (player.x > 4750 && player.x < 5450);
+            if (!inWaterNear) {
+                alert('You must stand near water to fish!');
+                return;
+            }
+
+            fishingState = 'waiting';
+            setTimeout(() => {
+                if (fishingState === 'waiting') {
+                    triggerReelGame();
+                }
+            }, 1500 + Math.random() * 2000);
+        }
+
+        function triggerReelGame() {
+            fishingState = 'reeling';
+            reelProgress = 0;
+            tension = 25;
+            fishBarPos = 50;
+            playerBarPos = 40;
+            document.getElementById('reeling-overlay').classList.remove('hidden');
+        }
+
+        function endFishing(success, message) {
+            document.getElementById('reeling-overlay').classList.add('hidden');
+            fishingState = 'none';
+
+            if (success) {
+                let biome = document.getElementById('hud-biome').textContent;
+                let availableFish = FISH_TYPES.filter(f => biome.includes(f.biome) || f.biome === "Forest");
+                currentFishCatch = availableFish[Math.floor(Math.random() * availableFish.length)];
+                triggerSnipeGame();
+            } else {
+                alert(message);
+            }
+        }
+
+        function triggerSnipeGame() {
+            const snipeOverlay = document.getElementById('snipe-overlay');
+            snipeOverlay.classList.remove('hidden');
+
+            setTimeout(() => {
+                if (!snipeOverlay.classList.contains('hidden')) {
+                    snipeOverlay.classList.add('hidden');
+                    completeCatch(1);
+                }
+            }, 2000);
+        }
+
+        function completeCatch(multiplier) {
+            document.getElementById('snipe-overlay').classList.add('hidden');
+            let finalVal = currentFishCatch.value * multiplier;
+            gameData.coins += finalVal;
+            gameData.inventory.push({ ...currentFishCatch, finalVal });
+            alert(`Caught ${currentFishCatch.name} (${currentFishCatch.rarity})! Earned ${finalVal} Coins (${multiplier}X Multiplier)!`);
+        }
+
+        function openInventory() {
+            const grid = document.getElementById('inventory-grid');
+            grid.innerHTML = '';
+            gameData.inventory.forEach((item) => {
+                grid.innerHTML += `
+                    <div class="bg-slate-950 border border-slate-700 p-3 rounded flex flex-col justify-between text-xs">
+                        <div>
+                            <div class="text-amber-400 font-bold">${item.name}</div>
+                            <div class="text-[9px] text-slate-400">${item.rarity} | ${item.weight}kg</div>
+                        </div>
+                        <div class="text-emerald-400 font-bold mt-2">${item.finalVal} 🪙</div>
+                    </div>
+                `;
+            });
+            document.getElementById('inv-count').textContent = gameData.inventory.length;
+            document.getElementById('inventory-modal').classList.remove('hidden');
+        }
+
+        function closeInventory() {
+            document.getElementById('inventory-modal').classList.add('hidden');
+        }
+
+        function sellAllFish() {
+            let total = gameData.inventory.reduce((sum, item) => sum + item.finalVal, 0);
+            gameData.coins += total;
+            gameData.inventory = [];
+            openInventory();
+            alert(`Sold all fish for ${total} coins!`);
+        }
+
+        function openShop() {
+            const list = document.getElementById('shop-items-list');
+            list.innerHTML = '';
+            for (let [rodName, stats] of Object.entries(RODS)) {
+                let owned = gameData.unlockedRods.includes(rodName);
+                list.innerHTML += `
+                    <div class="bg-slate-950 border border-slate-700 p-4 rounded flex justify-between items-center">
+                        <div>
+                            <div class="text-amber-400 font-bold">${rodName}</div>
+                            <div class="text-[10px] text-slate-400">Power: ${stats.power}x | Luck: ${stats.luck}x</div>
+                        </div>
+                        <div>
+                            ${owned ? '<span class="text-emerald-400 text-xs font-bold">OWNED</span>' : `<button onclick="buyRod('${rodName}', ${stats.cost})" class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded text-xs font-bold cursor-pointer">BUY (${stats.cost} 🪙)</button>`}
+                        </div>
+                    </div>
+                `;
+            }
+            document.getElementById('shop-modal').classList.remove('hidden');
+        }
+
+        function closeShop() {
+            document.getElementById('shop-modal').classList.add('hidden');
+        }
+
+        function buyRod(rodName, cost) {
+            if (gameData.coins >= cost) {
+                gameData.coins -= cost;
+                gameData.unlockedRods.push(rodName);
+                gameData.equippedRod = rodName;
+                openShop();
+                alert(`Successfully purchased ${rodName}!`);
+            } else {
+                alert('Not enough coins!');
+            }
+        }
+    </script>
+</body>
+</html>
